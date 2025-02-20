@@ -14,13 +14,21 @@ type Car struct {
 }
 
 func (c *Car) Draw(t int32) {
-	// if (t > c.Animation[0] && t <= c.Animation[1]) && (len(c.PositionHistory) >= 2) {
-	// 	c.Position = rl.Vector2Lerp(
-	// 		c.PositionHistory[len(c.PositionHistory)-2],
-	// 		c.PositionHistory[len(c.PositionHistory)-1],
-	// 		float32(t)/float32(c.Animation[1]-c.Animation[0]),
-	// 	)
-	// }
+	if len(c.PositionHistory) >= 2 {
+		if t <= c.Animation[0] {
+			c.Position = c.PositionHistory[len(c.PositionHistory)-2]
+		} else if t > c.Animation[0] && t <= c.Animation[1] {
+			f := float32(t-c.Animation[0]) / float32(c.Animation[1]-c.Animation[0])
+			// fmt.Println(f)
+			c.Position = rl.Vector2Lerp(
+				c.PositionHistory[len(c.PositionHistory)-2],
+				c.PositionHistory[len(c.PositionHistory)-1],
+				f,
+			)
+		} else {
+			c.Position = c.PositionHistory[len(c.PositionHistory)-1]
+		}
+	}
 	rl.PushMatrix()
 	rl.Translatef(c.Position.X, c.Position.Y, 0)
 	c.Model.Draw()

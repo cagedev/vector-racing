@@ -42,7 +42,7 @@ type Game struct {
 	CurrentPlayer int
 	Players       []*Player
 	Balls         []Ball
-	Collisions    []Collision
+	Collisions    []*Collision
 
 	HighlightOn bool
 	Highlight   Ball
@@ -120,7 +120,7 @@ func NewGame() (g Game) {
 		},
 	}
 
-	g.Collisions = make([]Collision, 10)
+	g.Collisions = make([]*Collision, 10)
 
 	return
 }
@@ -146,15 +146,19 @@ func (g *Game) IsGettingInput() bool {
 
 	// if all moves received -> Validate
 	for i, p := range g.Players {
-		if ValidateMove(p, *g) {
-			g.Players[i].MoveRequested = false
-			g.Players[i].NextMove.New = false
-			g.Players[i].NextMove.Approved = true
-		} else {
-			g.SetMessage(fmt.Sprintf("illegal move %s!", p.Name), 45, g.ErrorColor)
-			g.Players[i].MoveRequested = true
-			g.Players[i].NextMove = nil
-			return true
+		if p.MoveRequested {
+			if ValidateMove(p, *g) {
+				g.Players[i].MoveRequested = false
+				g.Players[i].NextMove.New = false
+				g.Players[i].NextMove.Approved = true
+				g.Players[i].IsCrashed = false
+				g.Players[i].Status = ""
+			} else {
+				g.SetMessage(fmt.Sprintf("illegal move %s!", p.Name), 45, g.ErrorColor)
+				g.Players[i].MoveRequested = true
+				g.Players[i].NextMove = nil
+				return true
+			}
 		}
 	}
 
@@ -172,8 +176,13 @@ func (g *Game) GetInput() {
 	}
 
 	// Get keyboard input
+	// Pause
 	if rl.IsKeyPressed(rl.KeyP) || rl.IsKeyPressed(rl.KeyBack) {
 		g.Pause = !g.Pause
+	}
+	// Highlight Next Move
+	if rl.IsKeyPressed(rl.KeyH) {
+		g.HighlightOn = !g.HighlightOn
 	}
 
 	// Camera pan
@@ -243,16 +252,62 @@ func (g *Game) Update() {
 				if err != nil {
 					continue
 				}
-				if ((ti >= 0) && (ti <= 1)) && ((tj >= 0) && (tj <= 1)) {
-					g.Collisions = append(g.Collisions, NewCollision(cp, "Collision"))
+				if ((ti > 0) && (ti <= 1)) && ((tj > 0) && (tj <= 1)) {
+
+					tImpact := max(ti, tj)
+					fmt.Println(ti, tj, "->", tImpact)
+					ftImpact := int32(tImpact * 60)
+					explDuration := int32(60)
+					if ti > tj {
+						g.Players[i].IsCrashed = true
+						g.Players[i].Status = "(on fire)"
+						g.Players[i].MoveRequested = true
+						g.Players[i].Car.PositionHistory[len(g.Players[i].Car.PositionHistory)-1] = g.getNearestGridPosition(cp)
+						g.Players[i].Car.Velocity = rl.Vector2{0, 0}
+					}
+					if tj > ti {
+						g.Players[j].IsCrashed = true
+						g.Players[j].Status = "(on fire)"
+						g.Players[j].MoveRequested = true
+						g.Players[j].Car.PositionHistory[len(g.Players[j].Car.PositionHistory)-1] = g.getNearestGridPosition(cp)
+						g.Players[j].Car.Velocity = rl.Vector2{0, 0}
+					}
+					if tj == ti {
+						g.Players[i].IsCrashed = true
+						g.Players[i].Status = "(on fire)"
+						g.Players[i].MoveRequested = true
+						g.Players[i].Car.PositionHistory[len(g.Players[i].Car.PositionHistory)-1] = g.getNearestGridPosition(cp)
+						g.Players[i].Car.Velocity = rl.Vector2{0, 0}
+
+						g.Players[j].IsCrashed = true
+						g.Players[j].Status = "(on fire)"
+						g.Players[j].MoveRequested = true
+						g.Players[j].Car.PositionHistory[len(g.Players[j].Car.PositionHistory)-1] = g.getNearestGridPosition(cp)
+						g.Players[j].Car.Velocity = rl.Vector2{0, 0}
+					}
+
+					g.Collisions = append(g.Collisions,
+						NewCollision(
+							cp, "Explosion",
+							g.FramesCounter+ftImpact,
+							explDuration,
+						),
+					)
+					g.Collisions = append(g.Collisions,
+						NewCollision(
+							cp, "Burning",
+							g.FramesCounter+ftImpact+explDuration,
+							300,
+						),
+					)
 				}
-				if (ti < 0) || (tj < 0) {
-					g.Collisions = append(g.Collisions, NewCollision(cp, "Past"))
+				if (ti <= 0) || (tj <= 0) {
+					g.Collisions = append(g.Collisions, NewCollision(cp, "Past", g.FramesCounter, 180))
 				}
 				if (ti > 1) && (tj > 1) {
-					g.Collisions = append(g.Collisions, NewCollision(cp, "Potential"))
+					g.Collisions = append(g.Collisions, NewCollision(cp, "Potential", g.FramesCounter, 120))
 				}
-				fmt.Println(cp, ti, tj)
+				// fmt.Println(cp, ti, tj)
 			}
 		}
 	}
@@ -260,6 +315,7 @@ func (g *Game) Update() {
 	// Reset current Player
 	g.CurrentPlayer = 0
 	g.TurnCounter++
+	fmt.Println("TURN=", g.TurnCounter)
 	g.SetMessage(fmt.Sprintf("Turn %d!", g.TurnCounter), 60, g.InfoColor)
 }
 
@@ -289,8 +345,10 @@ func (g *Game) Draw() {
 	}
 
 	// Draw Collisions
-	for _, c := range g.Collisions {
-		c.Draw()
+	for i := 0; i < len(g.Collisions); i++ {
+		if g.Collisions[i] != nil {
+			g.Collisions[i].Draw(g.FramesCounter)
+		}
 	}
 
 	// Draw Highlights

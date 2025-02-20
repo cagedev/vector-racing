@@ -11,10 +11,12 @@ import (
 type Player struct {
 	Name          string
 	Color         rl.Color
-	Car           Car
+	Car           *Car
 	Moves         []*Move2
 	NextMove      *Move2
 	MoveRequested bool
+	Status        string
+	IsCrashed     bool
 }
 
 func NewPlayer(sp rl.Vector2) *Player {
@@ -24,7 +26,7 @@ func NewPlayer(sp rl.Vector2) *Player {
 	return &Player{
 		Name:  PlayerNames[rand.Perm(len(PlayerNames))[0]],
 		Color: clr,
-		Car: Car{
+		Car: &Car{
 			Model: Ball{
 				Pos:    rl.Vector2Zero(),
 				Radius: 20,
@@ -40,21 +42,26 @@ func NewPlayer(sp rl.Vector2) *Player {
 		NextMove:      nil,
 		MoveRequested: true,
 	}
-
 }
 
 func (p *Player) Draw(t int32) {
+	// Draw Tail
 	p.Car.DrawHistory()
+
+	// Draw Car
 	p.Car.Draw(t)
+
+	// Draw Velocity vector
 	p.Car.DrawVelocity()
 
+	// Draw Player label
 	rl.PushMatrix()
 	rl.Translatef(p.Car.Position.X, p.Car.Position.Y, 0)
 	rl.DrawText(
-		p.Name,
+		p.Name+p.Status,
 		int32(p.Car.Model.Pos.X),
 		int32(p.Car.Model.Pos.Y),
-		10, rl.ColorLerp(rl.Black, p.Color, 0.5))
+		80, rl.ColorLerp(rl.Black, p.Color, 0.5))
 	rl.PopMatrix()
 }
 
@@ -63,18 +70,25 @@ func (p *Player) Draw(t int32) {
 // Check vs. TrackEdges
 // Check vs. TrackCheckpoints
 func (p *Player) ExecuteNextMove(g Game) {
+	if p.NextMove == nil {
+		return
+	}
+	// Check for collisions? -> in second loop? depends on strategy
 	p.Moves = append(p.Moves, p.NextMove)
-	// Check for collisions
 
 	// Update Car Position
 	p.Car.Velocity = Move2ToPositionDelta(*p.NextMove, g.GridStep)
-	p.Car.Position = rl.Vector2Add(
-		p.Car.Position,
-		p.Car.Velocity,
+
+	// Don't directly update position, let Animation finish this
+	p.Car.PositionHistory = append(
+		p.Car.PositionHistory,
+		rl.Vector2Add(
+			p.Car.Position,
+			p.Car.Velocity,
+		),
 	)
-	p.Car.PositionHistory = append(p.Car.PositionHistory, p.Car.Position)
-	// p.Car.Animation[0] = g.FramesCounter
-	// p.Car.Animation[1] = g.FramesCounter + 100
+	p.Car.Animation[0] = g.FramesCounter + 0
+	p.Car.Animation[1] = g.FramesCounter + 60
 }
 
 // A Move is an integer VecN where the unit vectors are of size dv
@@ -102,6 +116,12 @@ func Move2ToPositionDelta(m Move2, sf int) rl.Vector2 {
 }
 
 func ValidateMove(p *Player, g Game) bool {
+	if p.IsCrashed {
+		if (p.NextMove.DX != 0) || (p.NextMove.DY != 0) {
+			return false
+		}
+		return true
+	}
 	acc := rl.Vector2Subtract(
 		Move2ToPositionDelta(*p.NextMove, g.GridStep),
 		p.Car.Velocity,
@@ -110,6 +130,13 @@ func ValidateMove(p *Player, g Game) bool {
 }
 
 func CheckPlayerPlayerCollision(p1 *Player, p2 *Player) (i rl.Vector2, t1 float32, t2 float32, err error) {
+
+	// fmt.Println(p1.Car.PositionHistory)
+	// fmt.Println(p2.Car.PositionHistory)
+	// if len(p1.Car.PositionHistory) > 10 {
+	// 	fmt.Println("p1HistLen", len(p1.Car.PositionHistory))
+	// 	return rl.Vector2{}, 0, 0, errors.New("problem")
+	// }
 
 	if len(p2.Car.PositionHistory) < 2 || len(p1.Car.PositionHistory) < 2 {
 		return rl.Vector2{}, 0, 0, errors.New("no vector available to collide")
