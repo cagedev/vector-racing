@@ -1,0 +1,26 @@
+ - [ ] Do calculations in vectors (utility functions)
+   - [x] Do all in Raylib Math
+   - [x] GetNearestGridpoint(Vec2, GridSpacing) Vector2 (clamped)
+ - [ ] cleanup objects ->
+   - [ ] Game
+    - [ ] Scoring
+    - [ ] Rounds
+    - [ ] UI
+    - [ ]
+   - [ ] Player
+    - [x] Move(Vec2) -> 
+    - [x] KnownState -> Game Field and all other Cars (and Track)
+   - [x] Car
+   - [ ] Highlight
+    - [ ] AllowedMoves
+    - [x] CurrentVelocity
+    - [ ] ...
+   - [ ] Track ([]TrackParts)
+    - [ ] Border - []Poly
+    - [x] Start - lineSegment
+    - [x] End - lineSegment
+ - [x] HotSeat 
+ - [ ] Networking (client/server)
+ - [ ] Player interface (for AI or something)
+ - [ ] Partial Gamestate for FoW (and AI stuff)
+ - [ ] 3D?

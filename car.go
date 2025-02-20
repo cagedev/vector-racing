@@ -6,13 +6,25 @@ import (
 
 type Car struct {
 	Model           Ball
+	Position        rl.Vector2
 	Velocity        rl.Vector2
 	PositionHistory []rl.Vector2
 	Color           rl.Color
+	Animation       [2]int32
 }
 
-func (c Car) Draw() {
+func (c *Car) Draw(t int32) {
+	// if (t > c.Animation[0] && t <= c.Animation[1]) && (len(c.PositionHistory) >= 2) {
+	// 	c.Position = rl.Vector2Lerp(
+	// 		c.PositionHistory[len(c.PositionHistory)-2],
+	// 		c.PositionHistory[len(c.PositionHistory)-1],
+	// 		float32(t)/float32(c.Animation[1]-c.Animation[0]),
+	// 	)
+	// }
+	rl.PushMatrix()
+	rl.Translatef(c.Position.X, c.Position.Y, 0)
 	c.Model.Draw()
+	rl.PopMatrix()
 }
 
 func (c Car) DrawHistory() {
@@ -24,14 +36,14 @@ func (c Car) DrawHistory() {
 		)
 		rl.DrawLineEx(c.PositionHistory[i-1], c.PositionHistory[i], 5*b, col)
 	}
-	c.Model.Draw()
+	// c.Model.Draw()
 }
 
 func (c Car) DrawVelocity() {
 	vc := rl.ColorLerp(rl.Black, c.Model.Color, 0.5)
 	rl.DrawLineEx(
-		c.Model.Pos,
-		rl.Vector2Add(c.Model.Pos, c.Velocity),
+		c.Position,
+		rl.Vector2Add(c.Position, c.Velocity),
 		5.0,
 		vc,
 	)

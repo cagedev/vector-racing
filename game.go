@@ -40,14 +40,18 @@ type Game struct {
 
 	NumPlayers    int
 	CurrentPlayer int
-	Players       []Player
+	Players       []*Player
 	Balls         []Ball
+	Collisions    []Collision
 
 	HighlightOn bool
 	Highlight   Ball
 
 	GridStep int
 	GridSize int
+
+	Track          Track
+	InputAvailable bool
 }
 
 // NewGame - Start new game
@@ -55,6 +59,7 @@ func NewGame() (g Game) {
 	g.FramesCounter = 0
 	g.TurnCounter = 0
 	g.WindowShouldClose = false
+	g.InputAvailable = true
 
 	g.GameOver = false
 	g.Pause = false
@@ -80,8 +85,8 @@ func NewGame() (g Game) {
 	g.GridStep = 100
 
 	g.MaxVelocityDelta = rl.Vector2{
-		X: float32(g.GridStep) * 2,
-		Y: float32(g.GridStep) * 2,
+		X: float32(g.GridStep),
+		Y: float32(g.GridStep),
 	}
 	g.MaxAcceleration = rl.Vector2Length(g.MaxVelocityDelta)
 
@@ -103,6 +108,20 @@ func NewGame() (g Game) {
 		)
 	}
 	g.CurrentPlayer = 0
+
+	g.Track = Track{
+		Start: [2]rl.Vector2{
+			rl.Vector2{X: 0, Y: 0},
+			rl.Vector2{X: 1000, Y: 0},
+		},
+		End: [2]rl.Vector2{
+			rl.Vector2{X: 0, Y: 1000},
+			rl.Vector2{X: 1000, Y: 1000},
+		},
+	}
+
+	g.Collisions = make([]Collision, 10)
+
 	return
 }
 
@@ -144,6 +163,14 @@ func (g *Game) IsGettingInput() bool {
 }
 
 func (g *Game) GetInput() {
+	// DEBUG Restore control during animation etc.
+	if rl.IsKeyPressed(rl.KeyQ) {
+		g.InputAvailable = !g.InputAvailable
+	}
+	if !g.InputAvailable {
+		return
+	}
+
 	// Get keyboard input
 	if rl.IsKeyPressed(rl.KeyP) || rl.IsKeyPressed(rl.KeyBack) {
 		g.Pause = !g.Pause
@@ -185,20 +212,16 @@ func (g *Game) GetInput() {
 	}
 	if rl.IsMouseButtonPressed(rl.MouseButtonLeft) && g.AvailableForInput {
 		g.Players[g.CurrentPlayer].NextMove = CalculateMove(
-			g.Players[g.CurrentPlayer].Car.Model.Pos,
+			g.Players[g.CurrentPlayer].Car.Position,
 			gp,
 			g.GridStep,
 		)
 		g.AvailableForInput = false
 	}
-
 }
 
 // Update - Update game
 func (g *Game) Update() {
-	if g.GameOver {
-		return
-	}
 	if rl.WindowShouldClose() {
 		g.WindowShouldClose = true
 		return
@@ -211,6 +234,29 @@ func (g *Game) Update() {
 		g.Players[i].MoveRequested = true
 		g.Players[i].NextMove = nil
 	}
+
+	// Check Player-Player Collisions
+	for j := 0; j < len(g.Players); j++ {
+		for i := j; i < len(g.Players); i++ {
+			if i != j {
+				cp, ti, tj, err := CheckPlayerPlayerCollision(g.Players[j], g.Players[i])
+				if err != nil {
+					continue
+				}
+				if ((ti >= 0) && (ti <= 1)) && ((tj >= 0) && (tj <= 1)) {
+					g.Collisions = append(g.Collisions, NewCollision(cp, "Collision"))
+				}
+				if (ti < 0) || (tj < 0) {
+					g.Collisions = append(g.Collisions, NewCollision(cp, "Past"))
+				}
+				if (ti > 1) && (tj > 1) {
+					g.Collisions = append(g.Collisions, NewCollision(cp, "Potential"))
+				}
+				fmt.Println(cp, ti, tj)
+			}
+		}
+	}
+
 	// Reset current Player
 	g.CurrentPlayer = 0
 	g.TurnCounter++
@@ -227,19 +273,29 @@ func (g *Game) Draw() {
 	rl.BeginMode2D(g.Camera)
 
 	// Draw Grid from (0,0)
+	// TODO -> g.Grid.Draw()
 	rl.PushMatrix()
 	rl.Translatef(0, float32(g.GridSize), 0)
 	rl.Rotatef(90, 1, 0, 0)
 	rl.DrawGrid(int32(g.GridSize), float32(g.GridStep)) // Box is 50*GridSize (double in X foulded from center)
 	rl.PopMatrix()
 
+	// Draw Track
+	g.Track.Draw()
+
 	// Draw Players
 	for _, p := range g.Players {
-		p.Draw()
+		p.Draw(g.FramesCounter)
+	}
+
+	// Draw Collisions
+	for _, c := range g.Collisions {
+		c.Draw()
 	}
 
 	// Draw Highlights
 	if g.HighlightOn {
+		g.Highlight.Color = g.Players[g.CurrentPlayer].Color
 		g.Highlight.Draw()
 	}
 
@@ -324,7 +380,7 @@ func (g *Game) DrawMessage() {
 	// fmt.Println(g.FramesCounter, g.MessageTimeout)
 	if g.FramesCounter < g.MessageTimeout {
 		rl.DrawText(
-			fmt.Sprintf(g.Message), screenWidth/2-200, screenHeight/2, 40, g.MessageColor)
+			g.Message, screenWidth/2-200, screenHeight/2, 40, g.MessageColor)
 	}
 }
 
