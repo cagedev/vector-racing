@@ -65,6 +65,23 @@ func (c *Collision) Draw(t int32) {
 	}
 }
 
+func CheckVector2Point2Collision(v, dv, p rl.Vector2) (t float32, err error) {
+	if (dv.X == 0) && (dv.Y == 0) {
+		return 0, errors.New("=> point ^ point")
+	}
+
+	// test for collision
+	if (p.X-v.X)*dv.Y != (p.Y-v.Y)*dv.X {
+		return 0, errors.New("no collision")
+	}
+	if dv.X == 0 {
+		t = (p.Y - v.Y) / dv.Y
+	} else {
+		t = (p.X - v.X) / dv.X
+	}
+	return
+}
+
 func CheckVector2Vector2Collision(v, dv, w, dw rl.Vector2) (rl.Vector2, float32, float32, error) {
 	// TODO Check Edge cases
 	// - angle(dv) = angle(dw) -> parallel lines => Vector ^ point
@@ -74,8 +91,15 @@ func CheckVector2Vector2Collision(v, dv, w, dw rl.Vector2) (rl.Vector2, float32,
 
 	if rl.Vector2Angle(dv, dw) == 0 {
 		// TODO mod PI
+		fmt.Println("parallel lines")
 		return rl.Vector2{}, 0, 0, errors.New("angle(dv) = angle(dw) -> parallel lines => Vector ^ point")
 	}
+	if rl.Vector2Angle(dv, dw) == math.Pi {
+		// TODO mod PI
+		fmt.Println("antiparallel lines")
+		return rl.Vector2{}, 0, 0, errors.New("- angle(dv) = angle(dw) -> parallel lines => Vector ^ point")
+	}
+
 	swapped := false
 	var l, m, t float32
 

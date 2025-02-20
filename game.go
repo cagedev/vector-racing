@@ -259,31 +259,19 @@ func (g *Game) Update() {
 					ftImpact := int32(tImpact * 60)
 					explDuration := int32(60)
 					if ti > tj {
-						g.Players[i].IsCrashed = true
-						g.Players[i].Status = "(on fire)"
-						g.Players[i].MoveRequested = true
+						g.Players[i].Crash()
 						g.Players[i].Car.PositionHistory[len(g.Players[i].Car.PositionHistory)-1] = g.getNearestGridPosition(cp)
-						g.Players[i].Car.Velocity = rl.Vector2{0, 0}
 					}
 					if tj > ti {
-						g.Players[j].IsCrashed = true
-						g.Players[j].Status = "(on fire)"
-						g.Players[j].MoveRequested = true
+						g.Players[j].Crash()
 						g.Players[j].Car.PositionHistory[len(g.Players[j].Car.PositionHistory)-1] = g.getNearestGridPosition(cp)
-						g.Players[j].Car.Velocity = rl.Vector2{0, 0}
 					}
 					if tj == ti {
-						g.Players[i].IsCrashed = true
-						g.Players[i].Status = "(on fire)"
-						g.Players[i].MoveRequested = true
+						g.Players[i].Crash()
+						g.Players[j].Crash()
+						// FIX The nearest gridpoint is identical for both cars
 						g.Players[i].Car.PositionHistory[len(g.Players[i].Car.PositionHistory)-1] = g.getNearestGridPosition(cp)
-						g.Players[i].Car.Velocity = rl.Vector2{0, 0}
-
-						g.Players[j].IsCrashed = true
-						g.Players[j].Status = "(on fire)"
-						g.Players[j].MoveRequested = true
 						g.Players[j].Car.PositionHistory[len(g.Players[j].Car.PositionHistory)-1] = g.getNearestGridPosition(cp)
-						g.Players[j].Car.Velocity = rl.Vector2{0, 0}
 					}
 
 					g.Collisions = append(g.Collisions,
@@ -311,6 +299,9 @@ func (g *Game) Update() {
 			}
 		}
 	}
+
+	// Check vs. TrackEdges
+	// Check vs. TrackCheckpoints
 
 	// Reset current Player
 	g.CurrentPlayer = 0

@@ -65,10 +65,6 @@ func (p *Player) Draw(t int32) {
 	rl.PopMatrix()
 }
 
-// Pass in gameState
-// Check vs. All Other Players
-// Check vs. TrackEdges
-// Check vs. TrackCheckpoints
 func (p *Player) ExecuteNextMove(g Game) {
 	if p.NextMove == nil {
 		return
@@ -91,12 +87,10 @@ func (p *Player) ExecuteNextMove(g Game) {
 	p.Car.Animation[1] = g.FramesCounter + 60
 }
 
-// A Move is an integer VecN where the unit vectors are of size dv
-type Move2 struct {
-	DX       int
-	DY       int
-	New      bool
-	Approved bool
+func (p *Player) Crash() {
+	p.IsCrashed = true
+	p.Status = "(on fire)"
+	p.Car.Velocity = rl.Vector2{X: 0, Y: 0}
 }
 
 func CalculateMove(sp rl.Vector2, ep rl.Vector2, res int) *Move2 {
@@ -131,13 +125,7 @@ func ValidateMove(p *Player, g Game) bool {
 
 func CheckPlayerPlayerCollision(p1 *Player, p2 *Player) (i rl.Vector2, t1 float32, t2 float32, err error) {
 
-	// fmt.Println(p1.Car.PositionHistory)
-	// fmt.Println(p2.Car.PositionHistory)
-	// if len(p1.Car.PositionHistory) > 10 {
-	// 	fmt.Println("p1HistLen", len(p1.Car.PositionHistory))
-	// 	return rl.Vector2{}, 0, 0, errors.New("problem")
-	// }
-
+	// Only check for collisions if at least one move has been made
 	if len(p2.Car.PositionHistory) < 2 || len(p1.Car.PositionHistory) < 2 {
 		return rl.Vector2{}, 0, 0, errors.New("no vector available to collide")
 	}
@@ -163,3 +151,11 @@ func CheckPlayerPlayerCollision(p1 *Player, p2 *Player) (i rl.Vector2, t1 float3
 // func CheckPlayerTrackCollision(p Player, tr Track) (t float32) {}
 
 // func CheckPlayerCheckpointCollision(p Player, cp CheckPoint) (t float32) {}
+
+// A Move is an integer VecN where the unit vectors are of size dv
+type Move2 struct {
+	DX       int
+	DY       int
+	New      bool
+	Approved bool
+}
